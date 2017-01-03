@@ -12,7 +12,11 @@ public class AudioBuffer {
     private int datasize = 0;
     private int mask;
     private boolean ifstarted = false;
-    private AppState state = AppState.STOP;
+    private AppState state = AppState.FIRSTEXECUTE;
+    private AudioStreamReceiver audioStreamReceiver;
+    private AudioStreamPlayer audioStreamPlayer;
+    private boolean useCustomBufferSize = false;
+    private int CustomBufferSize;
 
 
     public long readcount = 0;
@@ -80,6 +84,10 @@ public class AudioBuffer {
         return readbytes;
     }
 
+    public void setAudioStreamReceiver(AudioStreamReceiver asr){audioStreamReceiver = asr;}
+    public AudioStreamReceiver getAudioStreamReceiver(){return audioStreamReceiver;}
+    public void setAudioStreamPlayer(AudioStreamPlayer asp){audioStreamPlayer = asp;}
+    public AudioStreamPlayer getAudioStreamPlayer(){return audioStreamPlayer;}
     public boolean getifstarted(){
         return ifstarted;
     }
@@ -88,6 +96,10 @@ public class AudioBuffer {
     }
     public void setAppState(AppState s){state = s;}
     public AppState getAppState(){return state;}
+    public void setUseCustomBufferSize(boolean flag){useCustomBufferSize = flag;}
+    public boolean getifCustomBufSize(){return useCustomBufferSize;}
+    public void setCustomBufferSize(int cbufsize){CustomBufferSize = cbufsize;}
+    public int getCustomBufferSize(){return CustomBufferSize;}
     public void flush(){
         bufStart = 0;
         datasize = 0;

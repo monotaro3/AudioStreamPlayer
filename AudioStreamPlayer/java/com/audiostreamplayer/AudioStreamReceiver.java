@@ -25,6 +25,8 @@ public abstract class AudioStreamReceiver {
     private static boolean bDone = false;
     private AppState AudioTrackReady;
     private ServerSocket serverSocket;
+    private Socket socket;
+    private DisplayUpdater displayUpdater;
 
     private Runnable mAcceptTask = new Runnable() {
         public void run() {
@@ -37,13 +39,13 @@ public abstract class AudioStreamReceiver {
                     public void run() {
                         ToastText("ServerSocket creation failed.");
                         AudioBuffer.getInstance().setAppState(AppState.STOP);
-                        setDisplayUpdater(true);
+                        displayUpdater.start();
                     }
                 });
                 throw new RuntimeException(e);
             }
 
-            final Socket socket;
+            //final Socket socket;
             try {
                 socket = serverSocket.accept();
             } catch (final IOException e) {
@@ -63,7 +65,7 @@ public abstract class AudioStreamReceiver {
                 mHandler.post(new Runnable() {
                     public void run() {
                         AudioBuffer.getInstance().setAppState(AppState.STOP);
-                        setDisplayUpdater(true);
+                        displayUpdater.start();
                     }
                 });
                 throw new RuntimeException(e);
@@ -75,7 +77,7 @@ public abstract class AudioStreamReceiver {
                         public void run() {
                             ToastText("ServerSocket close failed.");
                             AudioBuffer.getInstance().setAppState(AppState.STOP);
-                            setDisplayUpdater(true);
+                            displayUpdater.start();
                         }
                     });
                     throw new RuntimeException(e);
@@ -86,7 +88,7 @@ public abstract class AudioStreamReceiver {
                 AudioBuffer.getInstance().setAppState(AppState.INIT);
                 mHandler.post(new Runnable() {
                     public void run() {
-                        setDisplayUpdater(true);
+                        displayUpdater.start();
                     }
                 });
                 bDone = false;
@@ -99,7 +101,7 @@ public abstract class AudioStreamReceiver {
                         public void run() {
                             ToastText("SocketConnection closed unexpectedly.");
                             AudioBuffer.getInstance().setAppState(AppState.STOP);
-                            setDisplayUpdater(true);
+                            displayUpdater.start();
                         }
                     });
                     throw new RuntimeException(e);
@@ -109,24 +111,26 @@ public abstract class AudioStreamReceiver {
                         msg.what = 2;
                         ASPHandler.sendMessage(msg);
                     }
-                    try {
-                        socket.close();
-                    } catch (final IOException e) {
-                        mHandler.post(new Runnable() {
-                            public void run() {
-                                ToastText("Socketclose failed.");
-                                AudioBuffer.getInstance().setAppState(AppState.STOP);
-                                setDisplayUpdater(true);
-                            }
-                        });
-                        throw new RuntimeException(e);
+                    if(AudioTrackReady != AppState.STOP) {
+                        try {
+                            socket.close();
+                        } catch (final IOException e) {
+                            mHandler.post(new Runnable() {
+                                public void run() {
+                                    ToastText("Socketclose failed.");
+                                    AudioBuffer.getInstance().setAppState(AppState.STOP);
+                                    displayUpdater.start();
+                                }
+                            });
+                            throw new RuntimeException(e);
+                        }
                     }
                 }
                 mHandler.post(new Runnable() {
                     public void run() {
                         ToastText("Playback finished.");
                         AudioBuffer.getInstance().setAppState(AppState.STOP);
-                        setDisplayUpdater(true);
+                        displayUpdater.start();
                     }
                 });
             }else{
@@ -143,7 +147,7 @@ public abstract class AudioStreamReceiver {
                     mHandler.post(new Runnable() {
                         public void run() {
                             AudioBuffer.getInstance().setAppState(AppState.STOP);
-                            setDisplayUpdater(true);
+                            displayUpdater.start();
                         }
                     });
                 }
@@ -166,6 +170,14 @@ public abstract class AudioStreamReceiver {
         }
     }
 
+    public void closeSocket(){
+        try{
+            socket.close();
+        }catch(IOException e){
+            ToastText("Socket close failed.");
+        }
+    }
+
     public void setASPHandler(Handler h){
         ASPHandler = h;
     }
@@ -185,7 +197,8 @@ public abstract class AudioStreamReceiver {
     }
 
     protected abstract void ToastText(String data);
-    protected abstract void setDisplayUpdater(boolean flag);
+    public void setDisplayUpdater(DisplayUpdater du){displayUpdater = du;}
+    public DisplayUpdater getDisplayUpdater(){return displayUpdater;}
 
     private void AudioStreamReceiver(final InputStream inputStream, final OutputStream outputStream) throws IOException {
 
@@ -246,6 +259,13 @@ public abstract class AudioStreamReceiver {
 
         if(AudioTrackReady != AppState.AUDIOTRACK_READY){
             switch (AudioTrackReady) {
+                case AUDIOTRACK_FAILED_INITBUFSIZE:
+                    mHandler.post(new Runnable() {
+                        public void run() {
+                            ToastText("Custom buffersize is smaller than minBuffersize.");
+                        }
+                    });
+                    break;
                 case AUDIOTRACK_FAILED_INITPERIODFRAME:
                     mHandler.post(new Runnable() {
                     public void run() {
@@ -257,6 +277,13 @@ public abstract class AudioStreamReceiver {
                     mHandler.post(new Runnable() {
                         public void run() {
                             ToastText("Audiotrack constraction failed.");
+                        }
+                    });
+                    break;
+                case STOP:
+                    mHandler.post(new Runnable() {
+                        public void run() {
+                            ToastText("Audiotrack initialization terminated.");
                         }
                     });
                     break;
@@ -272,7 +299,7 @@ public abstract class AudioStreamReceiver {
         AudioBuffer.getInstance().setAppState(AppState.PLAY);
         mHandler.post(new Runnable() {
             public void run() {
-                setDisplayUpdater(true);
+                displayUpdater.start();
             }
         });
         //long duration = System.currentTimeMillis();

@@ -79,6 +79,7 @@ public class AudioStreamPlayer extends HandlerThread implements AudioTrack.OnPla
     }
 
     public AppState initBuffer(byte[] data){
+        audioBuffer = AudioBuffer.getInstance();
         byte[] initstream = new byte[16];
         System.arraycopy(data,0,initstream,0,16);
         ByteBuffer bIS = ByteBuffer.wrap(initstream);
@@ -98,6 +99,14 @@ public class AudioStreamPlayer extends HandlerThread implements AudioTrack.OnPla
                 nSampleRate,
                 Channels,
                 Encoding);
+        if(audioBuffer.getifCustomBufSize()){
+            int custombufsize = nSampleRate*audioBuffer.getCustomBufferSize()/1000*nBlockAlign;
+            if(custombufsize < minBufferSizeInBytes){
+                return AppState.AUDIOTRACK_FAILED_INITBUFSIZE;
+            }else{
+                minBufferSizeInBytes = custombufsize;
+            }
+        }
         delayflames = minBufferSizeInBytes/(nBitPerSamples/8*nChannels);
         periodframe = ((int)((minBufferSizeInBytes / nBlockAlign)/3 / (nSampleRate * nDevicePeriodms / 1000)))*(nSampleRate * nDevicePeriodms / 1000);
         if(periodframe==0){
@@ -118,7 +127,7 @@ public class AudioStreamPlayer extends HandlerThread implements AudioTrack.OnPla
 
         mAudioTrack.setPlaybackPositionUpdateListener(this);
         mAudioTrack.setPositionNotificationPeriod(periodframe);
-        audioBuffer = AudioBuffer.getInstance();
+
         int exp2 = 0;
         bufSize = 1;
         while(bufSize<minBufferSizeInBytes){
@@ -154,6 +163,15 @@ public class AudioStreamPlayer extends HandlerThread implements AudioTrack.OnPla
                 audioBuffer.writtenframes += mAudioTrack.write(data, 1+writtensize, datasize-writtensize)/nChannels;
             }
         }
+    }
+
+    public String getPlaybackDescription(){
+        return "Features:\n"
+                + "SamplingRate: " + Integer.toString(nSampleRate) + "  "
+                + "Channels: " + Integer.toString(nChannels) + "\n"
+                + "BitsPerSample: " + Integer.toString(nBitPerSamples) + "\n"
+                + "Audiotrack BufSize(bytes): " + Integer.toString(minBufferSizeInBytes)
+                + " (" + Integer.toString(minBufferSizeInBytes/nBlockAlign * 1000 / nSampleRate) + " millisec)";
     }
 
     public void audioclose(){
