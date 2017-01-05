@@ -9,7 +9,6 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.os.HandlerThread;
-import android.os.Looper;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -48,17 +47,18 @@ public class AudioStreamPlayer extends HandlerThread implements AudioTrack.OnPla
         }
         int writtensize = 0;
         int n =0;
-        //while(writtensize < readsize) {
+        while(writtensize < readsize) {
             n = mAudioTrack.write(bufshort, 0+writtensize, readsize-writtensize);
             writtensize += n;
-        //}
+        }
         audioBuffer.writtenframes += writtensize/nChannels;
         //ensure next periodnotification will be called
         while(audioBuffer.writtenframes -audioBuffer.playedperiodflames<periodframe){
             try {
                 this.sleep(nDevicePeriodms / 2);
             }catch(InterruptedException e){
-
+                AudioBuffer.getInstance().setAppState(AppState.AUDIOTRACK_FAILED_THREADSLEEP);
+                return;
             }
             readsize = audioBuffer.read(bufbyte,bufSize);
             readsize = readsize /2;
@@ -67,10 +67,10 @@ public class AudioStreamPlayer extends HandlerThread implements AudioTrack.OnPla
             }
             writtensize = 0;
             n =0;
-            //while(writtensize < readsize) {
+            while(writtensize < readsize) {
                 n = mAudioTrack.write(bufshort, 0+writtensize, readsize-writtensize);
                 writtensize += n;
-            //}
+            }
             audioBuffer.writtenframes += writtensize/nChannels;
         }
     }
@@ -146,12 +146,16 @@ public class AudioStreamPlayer extends HandlerThread implements AudioTrack.OnPla
     public synchronized void writeBuffer(short[] data){
         int datasize = data[0];
         int writtensize = 0;
+        int n;
 
         if(audioBuffer.getifstarted()) {
             mAudioTrack.write(data, 1, datasize);
-        } else{
-                writtensize = mAudioTrack.write(data, 1, datasize);
-             audioBuffer.writtenframes += (writtensize/nChannels);
+        } else {
+            while (writtensize < datasize && audioBuffer.writtenframes < delayflames) {
+                n =  mAudioTrack.write(data, 1 + writtensize, datasize - writtensize);
+                audioBuffer.writtenframes += (n / nChannels);
+                writtensize += n;
+            }
             if (audioBuffer.writtenframes >= delayflames) {
                 mAudioTrack.play();
                 if (mAudioTrack.getPlayState() == AudioTrack.PLAYSTATE_PLAYING) {
@@ -159,8 +163,10 @@ public class AudioStreamPlayer extends HandlerThread implements AudioTrack.OnPla
                     audioBuffer.setifstarted(true);
                 }
             }
-            if(writtensize < datasize){
-                audioBuffer.writtenframes += mAudioTrack.write(data, 1+writtensize, datasize-writtensize)/nChannels;
+            while(writtensize < datasize){
+                n =  mAudioTrack.write(data, 1 + writtensize, datasize - writtensize);
+                audioBuffer.writtenframes += (n / nChannels);
+                writtensize += n;
             }
         }
     }

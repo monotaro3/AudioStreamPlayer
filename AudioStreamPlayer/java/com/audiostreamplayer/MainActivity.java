@@ -1,5 +1,9 @@
 package com.audiostreamplayer;
 
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Paint;
 import android.os.Handler;
@@ -81,7 +85,6 @@ public class MainActivity extends AppCompatActivity {
                     button.setText("PLAY");
                 }
             }
-
             @Override
             public void updater() {
                 AppState state = AudioBuffer.getInstance().getAppState();
@@ -109,6 +112,14 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 protected void ToastText(final String data) {
                     Toast.makeText(getApplicationContext(), data, Toast.LENGTH_LONG).show();
+                }
+                @Override
+                public void setNotification() {
+                    activateNotification();
+                }
+                @Override
+                public void cancelNotification() {
+                    deactivateNotification();
                 }
             };
             mAudioStreamReceiver.setDisplayUpdater(displayUpdater);
@@ -229,5 +240,24 @@ public class MainActivity extends AppCompatActivity {
         if(etbufferSize.getText().toString().equals("")){editor.remove("CUSTOMBUFSIZE");}
         else{editor.putInt("CUSTOMBUFSIZE",Integer.parseInt(etbufferSize.getText().toString()));}
         editor.commit();
+    }
+
+    public void activateNotification(){
+        NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        Notification.Builder builder = new Notification.Builder(getApplicationContext());
+        builder.setTicker("Audio playback started.");
+        builder.setContentTitle("AudioStreamPlayer");
+        builder.setContentText("Now Playing");
+        builder.setSmallIcon(R.drawable.asp_icon);
+        builder.setWhen(System.currentTimeMillis());
+        Intent intent = new Intent(MainActivity.this,MainActivity.class);
+        PendingIntent contentIntent =PendingIntent.getActivity(this, 0, intent, 0);
+        builder.setContentIntent(contentIntent);
+        builder.setOngoing(true);
+        notificationManager.notify(R.string.app_name, builder.build());
+    }
+    public void deactivateNotification(){
+        NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        notificationManager.cancel(R.string.app_name);
     }
 }

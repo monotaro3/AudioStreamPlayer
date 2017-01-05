@@ -27,6 +27,7 @@ public abstract class AudioStreamReceiver {
     private ServerSocket serverSocket;
     private Socket socket;
     private DisplayUpdater displayUpdater;
+    private Future<?> future;
 
     private Runnable mAcceptTask = new Runnable() {
         public void run() {
@@ -101,6 +102,7 @@ public abstract class AudioStreamReceiver {
                         public void run() {
                             ToastText("SocketConnection closed unexpectedly.");
                             AudioBuffer.getInstance().setAppState(AppState.STOP);
+                            cancelNotification();
                             displayUpdater.start();
                         }
                     });
@@ -126,10 +128,18 @@ public abstract class AudioStreamReceiver {
                         }
                     }
                 }
+                if(AudioBuffer.getInstance().getAppState() == AppState.AUDIOTRACK_FAILED_THREADSLEEP){
+                    mHandler.post(new Runnable() {
+                        public void run() {
+                            ToastText("Thread sleep failed.");
+                        }
+                    });
+                }
                 mHandler.post(new Runnable() {
                     public void run() {
                         ToastText("Playback finished.");
                         AudioBuffer.getInstance().setAppState(AppState.STOP);
+                        cancelNotification();
                         displayUpdater.start();
                     }
                 });
@@ -193,10 +203,13 @@ public abstract class AudioStreamReceiver {
     public void start()
     {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        Future<?> future = executor.submit(mAcceptTask);
+        //Future<?> future = executor.submit(mAcceptTask);
+        future = executor.submit(mAcceptTask);
     }
 
     protected abstract void ToastText(String data);
+    public abstract  void setNotification();
+    public abstract void cancelNotification();
     public void setDisplayUpdater(DisplayUpdater du){displayUpdater = du;}
     public DisplayUpdater getDisplayUpdater(){return displayUpdater;}
 
@@ -238,7 +251,7 @@ public abstract class AudioStreamReceiver {
         }
 
         int leastsize = nSampleRate * devperiod / 1000 * nChannels;
-        short[] receivedbuffer = new short[leastsize*2];
+        short[] receivedbuffer = new short[(leastsize > packetsize ? leastsize : packetsize)*2];
         int receivedsize = 0;
 
         byte[] data = new byte[packetsize];
@@ -253,6 +266,12 @@ public abstract class AudioStreamReceiver {
                 try {
                     this.wait(); //wait until AudioTrack is ready
                 } catch (java.lang.InterruptedException e) {
+                    mHandler.post(new Runnable() {
+                        public void run() {
+                            ToastText("Wait method failed during initialization.");
+                        }
+                    });
+                    throw new IOException();
                 }
             }
         }
@@ -296,9 +315,11 @@ public abstract class AudioStreamReceiver {
         outputStream.flush();
 
         //Audiotrack playback start
+
         AudioBuffer.getInstance().setAppState(AppState.PLAY);
         mHandler.post(new Runnable() {
             public void run() {
+                setNotification();
                 displayUpdater.start();
             }
         });
@@ -323,7 +344,8 @@ public abstract class AudioStreamReceiver {
         short count = 0;
         short countmask = 1023;*/
 
-        while(!bDone){
+
+        while(!bDone && audiobuffer.getAppState() == AppState.PLAY){
             //transactiontime = System.currentTimeMillis();
             recvdata=0;
             while (true) {
@@ -361,6 +383,7 @@ public abstract class AudioStreamReceiver {
                 System.arraycopy(data,4,record,bufstart,datasize);
                 bufstart = bufstart +datasize;
             }
+
 */
                 datasize = datasize /2;
 
@@ -395,7 +418,6 @@ public abstract class AudioStreamReceiver {
             }
         }
         */
-
         //duration = System.currentTimeMillis() - duration;
         msg = Message.obtain();
         msg.what = 2;
