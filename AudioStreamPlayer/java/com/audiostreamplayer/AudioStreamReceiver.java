@@ -33,6 +33,7 @@ public abstract class AudioStreamReceiver {
         public void run() {
             AudioTrackReady = AppState.AUDIOTRACK_WAIT;
 
+            //open serversocket
             try {
                 serverSocket = new ServerSocket(mPort);
             } catch (final IOException e) {
@@ -46,7 +47,7 @@ public abstract class AudioStreamReceiver {
                 throw new RuntimeException(e);
             }
 
-            //final Socket socket;
+            //Accepting connection;
             try {
                 socket = serverSocket.accept();
             } catch (final IOException e) {
@@ -71,20 +72,23 @@ public abstract class AudioStreamReceiver {
                 });
                 throw new RuntimeException(e);
             } finally {
-                try {
-                    serverSocket.close();
-                } catch (final IOException e) {
-                    mHandler.post(new Runnable() {
-                        public void run() {
-                            ToastText("ServerSocket close failed.");
-                            AudioBuffer.getInstance().setAppState(AppState.STOP);
-                            displayUpdater.start();
-                        }
-                    });
-                    throw new RuntimeException(e);
+                if(AudioBuffer.getInstance().getAppState() != AppState.STOP) {
+                    try {
+                        serverSocket.close();
+                    } catch (final IOException e) {
+                        mHandler.post(new Runnable() {
+                            public void run() {
+                                ToastText("ServerSocket close failed.");
+                                AudioBuffer.getInstance().setAppState(AppState.STOP);
+                                displayUpdater.start();
+                            }
+                        });
+                        throw new RuntimeException(e);
+                    }
                 }
             }
 
+            //initialize and start playing
             if(AudioBuffer.getInstance().getAppState() == AppState.ACCEPT) {
                 AudioBuffer.getInstance().setAppState(AppState.INIT);
                 mHandler.post(new Runnable() {
@@ -108,12 +112,13 @@ public abstract class AudioStreamReceiver {
                     });
                     throw new RuntimeException(e);
                 } finally {
+                    AudioBuffer.getInstance().setAppState(AppState.STOP);
                     if(AudioTrackReady == AppState.AUDIOTRACK_READY){
                         Message msg = Message.obtain();
                         msg.what = 2;
                         ASPHandler.sendMessage(msg);
                     }
-                    if(AudioTrackReady != AppState.STOP) {
+                    if(!socket.isClosed()){ //AudioTrackReady != AppState.STOP) { //otherwise initialization is terminated
                         try {
                             socket.close();
                         } catch (final IOException e) {
@@ -128,17 +133,9 @@ public abstract class AudioStreamReceiver {
                         }
                     }
                 }
-                if(AudioBuffer.getInstance().getAppState() == AppState.AUDIOTRACK_FAILED_THREADSLEEP){
-                    mHandler.post(new Runnable() {
-                        public void run() {
-                            ToastText("Thread sleep failed.");
-                        }
-                    });
-                }
                 mHandler.post(new Runnable() {
                     public void run() {
                         ToastText("Playback finished.");
-                        AudioBuffer.getInstance().setAppState(AppState.STOP);
                         cancelNotification();
                         displayUpdater.start();
                     }
@@ -212,6 +209,7 @@ public abstract class AudioStreamReceiver {
     public abstract void cancelNotification();
     public void setDisplayUpdater(DisplayUpdater du){displayUpdater = du;}
     public DisplayUpdater getDisplayUpdater(){return displayUpdater;}
+    public Handler getASPHandler(){return mHandler;}
 
     private void AudioStreamReceiver(final InputStream inputStream, final OutputStream outputStream) throws IOException {
 
@@ -228,7 +226,7 @@ public abstract class AudioStreamReceiver {
         byte[] initstream = new byte[16];
         while (true) {
             n = inputStream.read(initstream, recvdata, initstream.length);
-            if (n == -1) return;
+            if (n == -1 || n == 0) return;
             recvdata += n;
             if (recvdata == initstream.length) break;
         }
@@ -299,13 +297,6 @@ public abstract class AudioStreamReceiver {
                         }
                     });
                     break;
-                case STOP:
-                    mHandler.post(new Runnable() {
-                        public void run() {
-                            ToastText("Audiotrack initialization terminated.");
-                        }
-                    });
-                    break;
             }
             throw new IOException();
         }
@@ -314,8 +305,16 @@ public abstract class AudioStreamReceiver {
         outputStream.write(ready, 0, 5);
         outputStream.flush();
 
-        //Audiotrack playback start
+        if(AudioBuffer.getInstance().getAppState() == AppState.STOP){
+            mHandler.post(new Runnable() {
+                public void run() {
+                    ToastText("Audiotrack initialization terminated.");
+                }
+            });
+            throw new IOException();
+        }
 
+        //Audiotrack playback start
         AudioBuffer.getInstance().setAppState(AppState.PLAY);
         mHandler.post(new Runnable() {
             public void run() {
@@ -419,8 +418,15 @@ public abstract class AudioStreamReceiver {
         }
         */
         //duration = System.currentTimeMillis() - duration;
-        msg = Message.obtain();
+        /*msg = Message.obtain();
         msg.what = 2;
-        ASPHandler.sendMessage(msg);
+        ASPHandler.sendMessage(msg);*/
+        if(AudioBuffer.getInstance().getAppState() == AppState.AUDIOTRACK_FAILED_THREADSLEEP){
+            mHandler.post(new Runnable() {
+                public void run() {
+                    ToastText("Thread sleep failed.");
+                }
+            });
+        }
     }
 }

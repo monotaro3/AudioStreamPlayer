@@ -53,7 +53,7 @@ public class AudioStreamPlayer extends HandlerThread implements AudioTrack.OnPla
         }
         audioBuffer.writtenframes += writtensize/nChannels;
         //ensure next periodnotification will be called
-        while(audioBuffer.writtenframes -audioBuffer.playedperiodflames<periodframe){
+        while(audioBuffer.writtenframes -audioBuffer.playedperiodflames<periodframe && audioBuffer.getAppState() == AppState.PLAY){
             try {
                 this.sleep(nDevicePeriodms / 2);
             }catch(InterruptedException e){

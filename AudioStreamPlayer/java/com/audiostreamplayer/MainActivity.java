@@ -126,30 +126,7 @@ public class MainActivity extends AppCompatActivity {
 
             ASPThread = new AudioStreamPlayer();
             ASPThread.start();
-
-            Handler ASPHandler = new Handler(ASPThread.getLooper()) {
-                @Override
-                public void handleMessage(Message msg) {
-                    switch (msg.what) {
-                        case 0:
-                            AppState result = ASPThread.initBuffer((byte[]) msg.obj);
-                            synchronized (mAudioStreamReceiver) {
-                                if (AudioBuffer.getInstance().getAppState() != AppState.STOP) {
-                                    mAudioStreamReceiver.setAudioTrackReady(result);
-                                }
-                                mAudioStreamReceiver.notifyAll();
-                            }
-                            break;
-                        case 2:
-                            ASPThread.audioclose();
-                            break;
-                        default:
-                            ASPThread.writeBuffer((short[]) msg.obj);
-                            break;
-                    }
-                }
-            };
-            mAudioStreamReceiver.setASPHandler(ASPHandler);
+            mAudioStreamReceiver.setASPHandler(getASPHandler());
             AudioBuffer.getInstance().setAudioStreamReceiver(mAudioStreamReceiver);
             AudioBuffer.getInstance().setAudioStreamPlayer(ASPThread);
         }else{
@@ -193,6 +170,9 @@ public class MainActivity extends AppCompatActivity {
                     mAudioStreamReceiver.setPort(port);
                     ab.setUseCustomBufferSize(bcustombufsize.isChecked());
                     if(bcustombufsize.isChecked())ab.setCustomBufferSize(Integer.parseInt(etbufferSize.getText().toString()));
+                    //if(!(ASPThread.getLooper().getThread() == mAudioStreamReceiver.getASPHandler().getLooper().getThread())) {
+                    //    mAudioStreamReceiver.setASPHandler(getASPHandler());
+                    //}
                     AudioBuffer.getInstance().setAppState(AppState.ACCEPT);
                     displayUpdater.start();
                     mAudioStreamReceiver.start();
@@ -259,5 +239,29 @@ public class MainActivity extends AppCompatActivity {
     public void deactivateNotification(){
         NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         notificationManager.cancel(R.string.app_name);
+    }
+
+    public Handler getASPHandler(){
+        Handler ASPHandler = new Handler(ASPThread.getLooper()) {
+            @Override
+            public void handleMessage(Message msg) {
+                switch (msg.what) {
+                    case 0:
+                        AppState result = ASPThread.initBuffer((byte[]) msg.obj);
+                        synchronized (mAudioStreamReceiver) {
+                            mAudioStreamReceiver.setAudioTrackReady(result);
+                            mAudioStreamReceiver.notifyAll();
+                        }
+                        break;
+                    case 2:
+                        ASPThread.audioclose();
+                        break;
+                    default:
+                        ASPThread.writeBuffer((short[]) msg.obj);
+                        break;
+                }
+            }
+        };
+        return ASPHandler;
     }
 }

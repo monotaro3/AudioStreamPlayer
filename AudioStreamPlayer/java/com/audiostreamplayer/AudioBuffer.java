@@ -94,8 +94,8 @@ public class AudioBuffer {
     public void setifstarted(boolean flag){
         ifstarted = flag;
     }
-    public void setAppState(AppState s){state = s;}
-    public AppState getAppState(){return state;}
+    public synchronized void setAppState(AppState s){state = s;}
+    public synchronized AppState getAppState(){return state;}
     public void setUseCustomBufferSize(boolean flag){useCustomBufferSize = flag;}
     public boolean getifCustomBufSize(){return useCustomBufferSize;}
     public void setCustomBufferSize(int cbufsize){CustomBufferSize = cbufsize;}
