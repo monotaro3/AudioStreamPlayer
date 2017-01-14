@@ -99,6 +99,9 @@ public class AudioStreamPlayer extends HandlerThread implements AudioTrack.OnPla
                 nSampleRate,
                 Channels,
                 Encoding);
+        if(minBufferSizeInBytes<0){
+            return AppState.AUDIOTRACK_FAILED_NEWAUDIOTRACK;
+        }
         if(audioBuffer.getifCustomBufSize()){
             int custombufsize = nSampleRate*audioBuffer.getCustomBufferSize()/1000*nBlockAlign;
             if(custombufsize < minBufferSizeInBytes){
@@ -115,15 +118,17 @@ public class AudioStreamPlayer extends HandlerThread implements AudioTrack.OnPla
             }
             periodframe = nSampleRate * nDevicePeriodms / 1000;
         }
-        mAudioTrack = new AudioTrack(
-                AudioManager.STREAM_MUSIC,
-                nSampleRate,
-                Channels,
-                Encoding,
-                minBufferSizeInBytes,
-                AudioTrack.MODE_STREAM);
-
-        if(mAudioTrack == null)return AppState.AUDIOTRACK_FAILED_NEWAUDIOTRACK;
+        try {
+            mAudioTrack = new AudioTrack(
+                    AudioManager.STREAM_MUSIC,
+                    nSampleRate,
+                    Channels,
+                    Encoding,
+                    minBufferSizeInBytes,
+                    AudioTrack.MODE_STREAM);
+        }catch (IllegalArgumentException e){
+            return AppState.AUDIOTRACK_FAILED_NEWAUDIOTRACK;
+        }
 
         mAudioTrack.setPlaybackPositionUpdateListener(this);
         mAudioTrack.setPositionNotificationPeriod(periodframe);

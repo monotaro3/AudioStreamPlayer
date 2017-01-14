@@ -293,7 +293,7 @@ public abstract class AudioStreamReceiver {
                 case AUDIOTRACK_FAILED_NEWAUDIOTRACK:
                     mHandler.post(new Runnable() {
                         public void run() {
-                            ToastText("Audiotrack constraction failed.");
+                            ToastText("Audiotrack construction failed.");
                         }
                     });
                     break;
