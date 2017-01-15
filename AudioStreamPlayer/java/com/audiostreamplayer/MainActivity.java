@@ -195,14 +195,15 @@ public class MainActivity extends AppCompatActivity {
         if(hasFocus){
             displayUpdater.init();
             editText.setText(displayUpdater.loadPort());
-            textview1.setText(displayUpdater.loadText());
+            //textview1.setText(displayUpdater.loadText());
             bcustombufsize.setChecked(displayUpdater.loadifcbufsize());
             etbufferSize.setText(displayUpdater.loadcbufsize());
             AppState as = AudioBuffer.getInstance().getAppState();
+            if(as == AppState.STOP && ASPThread.getAudioTrack() == null)textview1.setText("");
             if(as != AppState.FIRSTEXECUTE && as != AppState.STOP)displayUpdater.resume();
         }else{
             displayUpdater.savePort(editText.getText().toString());
-            displayUpdater.saveText(textview1.getText().toString());
+            //displayUpdater.saveText(textview1.getText().toString());
             displayUpdater.saveifcbufsize(bcustombufsize.isChecked());
             displayUpdater.savecbufsize(etbufferSize.getText().toString());
             displayUpdater.stop();

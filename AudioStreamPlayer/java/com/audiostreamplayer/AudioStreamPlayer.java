@@ -189,4 +189,6 @@ public class AudioStreamPlayer extends HandlerThread implements AudioTrack.OnPla
         mAudioTrack.stop();
         mAudioTrack.flush();
     }
+
+    public AudioTrack getAudioTrack(){return mAudioTrack;}
 }
